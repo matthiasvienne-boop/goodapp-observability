@@ -4,6 +4,14 @@
   "private": false,
   "license": "MIT",
   "description": "Shared structured logger, Sentry init, env-validation engine, and health-check helper for GoodApp products.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/matthiasvienne-boop/goodapp-observability.git"
+  },
+  "homepage": "https://github.com/matthiasvienne-boop/goodapp-observability#readme",
+  "bugs": {
+    "url": "https://github.com/matthiasvienne-boop/goodapp-observability/issues"
+  },
   "type": "commonjs",
   "exports": {
     "./server": {
