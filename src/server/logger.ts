@@ -21,7 +21,7 @@
 // optioneel en zonder effect als nooit aangeroepen.
 
 import { AsyncLocalStorage } from "async_hooks";
-import { Sentry } from "./sentry";
+import { Sentry } from "./sentry.js";
 
 export type LogLevel = "debug" | "info" | "warn" | "error";
 

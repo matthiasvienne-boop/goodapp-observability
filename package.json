@@ -1,6 +1,6 @@
 {
   "name": "@goodapp/observability",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": false,
   "license": "MIT",
   "description": "Shared structured logger, Sentry init, env-validation engine, and health-check helper for GoodApp products.",
@@ -38,8 +38,7 @@
     "build": "npm run build:cjs && npm run build:esm && npm run build:pkgs",
     "build:cjs": "tsc -p tsconfig.cjs.json",
     "build:esm": "tsc -p tsconfig.esm.json",
-    "build:pkgs": "node scripts/write-dist-package-json.js",
-    "prepare": "npm run build"
+    "build:pkgs": "node scripts/write-dist-package-json.js"
   },
   "peerDependencies": {
     "@sentry/node": ">=8",

@@ -39,13 +39,13 @@ Pre-1.0 (`0.x`, where this package starts): breaking changes are allowed between
 ## Release checklist
 
 1. Make the change. If it's a genuine behavior change (not a pure bugfix), decide major/minor/patch per the policy above *before* writing the version bump.
-2. From a **completely clean state**, prove the build isn't coasting on stale artifacts:
+2. From a **completely clean state**, build and commit `dist/` yourself — it is tracked in git, not built during a consumer's install:
    ```
-   rm -rf node_modules dist && npm install
+   rm -rf node_modules dist && npm install && npm run build
    ```
-   This must succeed — it's what proves the `prepare` lifecycle script actually runs the build (the exact thing a fresh git-dependency install or a Docker `npm ci` will do).
+   **Why `dist/` is committed, not (only) built on install:** the original release shipped relative imports without a `.js` extension (`from "./logger"`). `tsconfig`'s `moduleResolution: "bundler"` type-checks that fine and `tsc` emits it byte-for-byte as `from "./logger"` — but real Node ESM (unlike a bundler) does no extension-guessing on relative specifiers, so every consumer's runtime import of `@goodapp/observability/server` threw `Cannot find module '.../logger'` the moment anything actually *ran* the code (Vitest under Node, not just `tsc`/a bundler build — which is exactly why it broke `test-api` in CI while `typecheck`/`build-web`/`build-api` stayed green, and why it looked like a phantom CI-only failure at first). Fixed by adding explicit `.js` extensions to every relative import in `src/`. Committing the built `dist/` on top of that fix means a consumer's install never depends on this package's own build step succeeding at all — belt and suspenders, not a substitute for the actual fix.
 3. Bump `version` in `package.json`.
-4. Commit.
+4. Commit (including the rebuilt `dist/`).
 5. Tag: `git tag -a vX.Y.Z -m "..."`, then `git push origin main --tags` (or push the specific tag).
 6. **Before touching any consumer**, validate the new tag from a fresh, isolated scratch project — not either product:
    ```
@@ -53,7 +53,7 @@ Pre-1.0 (`0.x`, where this package starts): breaking changes are allowed between
    npm init -y
    npm install github:matthiasvienne-boop/goodapp-observability#<new-tag-or-sha>
    ```
-   Confirm: `npm install` succeeds, the `prepare`/build lifecycle runs, both subpath imports resolve under TypeScript, and a minimal script actually runs at runtime (not just typechecks). This is the exact mechanism a Docker `npm ci` will exercise — a `file:` dependency or a symlinked local test **cannot** substitute for this step (see "A real bug this step caught," below).
+   Confirm: `npm install` succeeds (no build runs — `dist/` arrives as committed files), both subpath imports resolve under TypeScript, and a minimal script actually runs at runtime (not just typechecks). This is the exact mechanism a Docker `npm ci` will exercise — a `file:` dependency or a symlinked local test **cannot** substitute for this step (see "A real bug this step caught," below).
 7. Only after step 6 passes: update **one** consumer's `package.json` to the new pinned SHA, regenerate its lockfile, run its own typecheck + build + smoke validation.
 8. Repeat step 7 for the second consumer, independently, on its own schedule — never both products' first adoption of a new version at the same time.
 9. Deploying is a separate, later decision for each product's own team/process — this checklist stops at "validated and pinned," not "deployed."

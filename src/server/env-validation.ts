@@ -12,7 +12,7 @@
 // GEGOOID (niet process.exit() aangeroepen) — de caller is verantwoordelijk voor
 // wat daarna gebeurt (zie het package-README voor waarom dit als expliciete
 // try/catch + process.exit(1) bij de caller hoort, niet impliciet in deze functie).
-import { createLogger } from "./logger";
+import { createLogger } from "./logger.js";
 
 const log = createLogger("env-validation");
 
