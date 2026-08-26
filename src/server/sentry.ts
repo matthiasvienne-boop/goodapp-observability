@@ -7,6 +7,7 @@
 // terug op exact de env vars die Veynoris vandaag al leest.
 import * as Sentry from "@sentry/node";
 import type { Application } from "express";
+import { schoonEvent } from "../shared/redactie.js";
 
 export interface BackendSentryOptions {
   dsn?: string;
@@ -26,11 +27,11 @@ export function initBackendSentry(options: BackendSentryOptions = {}): void {
     release: options.release ?? process.env.SENTRY_RELEASE ?? undefined,
     tracesSampleRate: options.tracesSampleRate ?? (process.env.NODE_ENV === "production" ? 0.1 : 1.0),
     initialScope: options.serviceName ? { tags: { service: options.serviceName } } : undefined,
+    // Hier stond een filter op alleen `request.data`. Headers, cookies en query
+    // string gingen ongefilterd mee, inclusief authorization en het servicetoken
+    // tussen de producten onderling.
     beforeSend(event) {
-      if (event.request?.data) {
-        event.request.data = "[filtered]";
-      }
-      return event;
+      return schoonEvent(event);
     },
   });
 }
