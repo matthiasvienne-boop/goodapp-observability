@@ -3,7 +3,7 @@
 // deze package is de eerste keer dat dit als herbruikbare functie bestaat).
 // No-op zolang geen dsn is meegegeven.
 import * as Sentry from "@sentry/react";
-import { schoonEvent } from "../shared/redactie.js";
+import { schoonEvent, type ExtraSleutels } from "../shared/redactie.js";
 
 export interface FrontendSentryOptions {
   dsn?: string;

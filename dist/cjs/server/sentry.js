@@ -60,7 +60,7 @@ function initBackendSentry(options = {}) {
         // string gingen ongefilterd mee, inclusief authorization en het servicetoken
         // tussen de producten onderling.
         beforeSend(event) {
-            return (0, redactie_js_1.schoonEvent)(event);
+            return (0, redactie_js_1.schoonEvent)(event, options.extraGevoeligeSleutels);
         },
     });
 }

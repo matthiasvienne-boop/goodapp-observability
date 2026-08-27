@@ -62,11 +62,33 @@ const VERTROUWELIJKE_SLEUTELS = [
 
 export const GEREDACTEERD = '[weggelaten]';
 
-function isGevoelig(sleutel: string): boolean {
+/**
+ * Sleutels die dít product gevoelig vindt, bovenop de gedeelde lijsten.
+ *
+ * WAAROM DIT ERBIJ MOET
+ *
+ * TenderDesk droeg een eigen kopie van dit bestand — 203 regels, nagenoeg
+ * identiek. Het enige verschil was één sleutel: `tendertekst`. Dat is een
+ * woord uit één domein, en dat hoort niet in een gedeeld pakket: een pakket dat
+ * de woordenschat van elk product opneemt wordt een framework, en dan zit elk
+ * product vast aan de kleinste gemene deler.
+ *
+ * Maar 203 regels onderhouden om één sleutel is ook geen antwoord. Een kopie
+ * heeft geen historie en loopt af.
+ *
+ * Vandaar dit: het mechanisme gedeeld, de woordenschat eigen. Dezelfde
+ * verhouding die env-validation.ts bij drie producten al volgt — het gedeelde
+ * pakket levert de controle, het product verklaart zijn eigen regels.
+ */
+export type ExtraSleutels = readonly string[];
+
+function isGevoelig(sleutel: string, extra: ExtraSleutels = []): boolean {
   const kaal = sleutel.toLowerCase().replace(/[^a-z]/g, '');
+  const kaalExtra = extra.map((s) => s.toLowerCase().replace(/[^a-z]/g, ''));
   return (
     GEHEIME_SLEUTELS.some((s) => kaal.includes(s)) ||
-    VERTROUWELIJKE_SLEUTELS.some((s) => kaal.includes(s))
+    VERTROUWELIJKE_SLEUTELS.some((s) => kaal.includes(s)) ||
+    kaalExtra.some((s) => s.length > 0 && kaal.includes(s))
   );
 }
 
@@ -76,18 +98,18 @@ function isGevoelig(sleutel: string): boolean {
  * Diepte begrensd: een cyclische of extreem geneste structuur mag de foutafhandeling
  * niet laten vastlopen — dat zou van een fout een storing maken.
  */
-export function redacteer(waarde: unknown, diepte = 0): unknown {
+export function redacteer(waarde: unknown, diepte = 0, extra: ExtraSleutels = []): unknown {
   if (diepte > 6) return GEREDACTEERD;
   if (waarde === null || waarde === undefined) return waarde;
 
   if (Array.isArray(waarde)) {
-    return waarde.slice(0, 20).map((item) => redacteer(item, diepte + 1));
+    return waarde.slice(0, 20).map((item) => redacteer(item, diepte + 1, extra));
   }
 
   if (typeof waarde === 'object') {
     const uit: Record<string, unknown> = {};
     for (const [sleutel, inhoud] of Object.entries(waarde as Record<string, unknown>)) {
-      uit[sleutel] = isGevoelig(sleutel) ? GEREDACTEERD : redacteer(inhoud, diepte + 1);
+      uit[sleutel] = isGevoelig(sleutel, extra) ? GEREDACTEERD : redacteer(inhoud, diepte + 1, extra);
     }
     return uit;
   }
@@ -151,7 +173,7 @@ export interface SentryAchtigEvent {
  * kan elke vorm hebben, en veld-voor-veld schonen mist onvermijdelijk het veld dat
  * volgende maand wordt toegevoegd.
  */
-export function schoonEvent<T extends SentryAchtigEvent>(event: T): T {
+export function schoonEvent<T extends SentryAchtigEvent>(event: T, extra: ExtraSleutels = []): T {
   const uit: SentryAchtigEvent = { ...event };
 
   if (uit.request) {
@@ -166,8 +188,8 @@ export function schoonEvent<T extends SentryAchtigEvent>(event: T): T {
     };
   }
 
-  if (uit.extra) uit.extra = redacteer(uit.extra) as Record<string, unknown>;
-  if (uit.contexts) uit.contexts = redacteer(uit.contexts) as Record<string, unknown>;
+  if (uit.extra) uit.extra = redacteer(uit.extra, 0, extra) as Record<string, unknown>;
+  if (uit.contexts) uit.contexts = redacteer(uit.contexts, 0, extra) as Record<string, unknown>;
 
   if (uit.breadcrumbs) {
     uit.breadcrumbs = uit.breadcrumbs.map((kruimel) => ({

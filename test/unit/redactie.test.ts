@@ -192,3 +192,43 @@ describe("beide Sentry-inits redigeren", () => {
     expect(bron).toMatch(/environment === "production" \? 0\.1/);
   });
 });
+
+// ─── Uitbreidbare sleutels (TEN-76) ───
+
+describe('extra gevoelige sleutels per product', () => {
+  it('redigeert een eigen sleutel die de gedeelde lijsten niet kennen', () => {
+    const uit = redacteer({ tendertekst: 'vertrouwelijk bestek', titel: 'Tender 2026' }, 0, ['tendertekst']) as Record<string, unknown>;
+    expect(uit.tendertekst).toBe(GEREDACTEERD);
+    expect(uit.titel).toBe('Tender 2026');
+  });
+
+  it('laat zonder extra sleutels alles bij het oude', () => {
+    // De uitbreiding mag het gedeelde gedrag niet verschuiven: wie niets
+    // meegeeft, hoort exact te krijgen wat hij voorheen kreeg.
+    const uit = redacteer({ tendertekst: 'vertrouwelijk bestek' }) as Record<string, unknown>;
+    expect(uit.tendertekst).toBe('vertrouwelijk bestek');
+  });
+
+  it('werkt ook diep in de structuur, niet alleen op het eerste niveau', () => {
+    const uit = redacteer({ dossier: { regels: [{ tendertekst: 'geheim' }] } }, 0, ['tendertekst']) as any;
+    expect(uit.dossier.regels[0].tendertekst).toBe(GEREDACTEERD);
+  });
+
+  it('een lege of blanco sleutel redigeert niet alles', () => {
+    // Zonder de lengtecontrole zou een lege string in elke sleutelnaam
+    // voorkomen, en dan is er van het event niets meer over.
+    const uit = redacteer({ titel: 'Tender 2026' }, 0, ['', '   ']) as Record<string, unknown>;
+    expect(uit.titel).toBe('Tender 2026');
+  });
+
+  it('schoonEvent geeft de extra sleutels door aan extra en contexts', () => {
+    const event = {
+      extra: { tendertekst: 'geheim', gewoon: 'zichtbaar' },
+      contexts: { dossier: { tendertekst: 'ook geheim' } },
+    };
+    const uit = schoonEvent(event as any, ['tendertekst']) as any;
+    expect(uit.extra.tendertekst).toBe(GEREDACTEERD);
+    expect(uit.extra.gewoon).toBe('zichtbaar');
+    expect(uit.contexts.dossier.tendertekst).toBe(GEREDACTEERD);
+  });
+});

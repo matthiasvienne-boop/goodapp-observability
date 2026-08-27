@@ -7,7 +7,7 @@
 // terug op exact de env vars die Veynoris vandaag al leest.
 import * as Sentry from "@sentry/node";
 import type { Application } from "express";
-import { schoonEvent } from "../shared/redactie.js";
+import { schoonEvent, type ExtraSleutels } from "../shared/redactie.js";
 
 export interface BackendSentryOptions {
   dsn?: string;
@@ -15,6 +15,14 @@ export interface BackendSentryOptions {
   release?: string;
   tracesSampleRate?: number;
   serviceName?: string;
+  /**
+   * Sleutels die dit product gevoelig vindt, bovenop de gedeelde lijsten.
+   *
+   * Voor een product met eigen domeinwoorden — TenderDesk redigeert bijvoorbeeld
+   * `tendertekst`. Zonder deze uitweg houdt zo'n product een eigen kopie van de
+   * hele redactiemodule, en een kopie heeft geen historie en loopt af.
+   */
+  extraGevoeligeSleutels?: ExtraSleutels;
 }
 
 export function initBackendSentry(options: BackendSentryOptions = {}): void {
@@ -31,7 +39,7 @@ export function initBackendSentry(options: BackendSentryOptions = {}): void {
     // string gingen ongefilterd mee, inclusief authorization en het servicetoken
     // tussen de producten onderling.
     beforeSend(event) {
-      return schoonEvent(event);
+      return schoonEvent(event, options.extraGevoeligeSleutels);
     },
   });
 }

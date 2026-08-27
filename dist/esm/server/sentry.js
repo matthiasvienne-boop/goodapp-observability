@@ -21,7 +21,7 @@ export function initBackendSentry(options = {}) {
         // string gingen ongefilterd mee, inclusief authorization en het servicetoken
         // tussen de producten onderling.
         beforeSend(event) {
-            return schoonEvent(event);
+            return schoonEvent(event, options.extraGevoeligeSleutels);
         },
     });
 }

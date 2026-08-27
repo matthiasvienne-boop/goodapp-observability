@@ -58,10 +58,12 @@ const VERTROUWELIJKE_SLEUTELS = [
     'klantnaam',
 ];
 export const GEREDACTEERD = '[weggelaten]';
-function isGevoelig(sleutel) {
+function isGevoelig(sleutel, extra = []) {
     const kaal = sleutel.toLowerCase().replace(/[^a-z]/g, '');
+    const kaalExtra = extra.map((s) => s.toLowerCase().replace(/[^a-z]/g, ''));
     return (GEHEIME_SLEUTELS.some((s) => kaal.includes(s)) ||
-        VERTROUWELIJKE_SLEUTELS.some((s) => kaal.includes(s)));
+        VERTROUWELIJKE_SLEUTELS.some((s) => kaal.includes(s)) ||
+        kaalExtra.some((s) => s.length > 0 && kaal.includes(s)));
 }
 /**
  * Redacteert een willekeurige waarde recursief.
@@ -69,18 +71,18 @@ function isGevoelig(sleutel) {
  * Diepte begrensd: een cyclische of extreem geneste structuur mag de foutafhandeling
  * niet laten vastlopen — dat zou van een fout een storing maken.
  */
-export function redacteer(waarde, diepte = 0) {
+export function redacteer(waarde, diepte = 0, extra = []) {
     if (diepte > 6)
         return GEREDACTEERD;
     if (waarde === null || waarde === undefined)
         return waarde;
     if (Array.isArray(waarde)) {
-        return waarde.slice(0, 20).map((item) => redacteer(item, diepte + 1));
+        return waarde.slice(0, 20).map((item) => redacteer(item, diepte + 1, extra));
     }
     if (typeof waarde === 'object') {
         const uit = {};
         for (const [sleutel, inhoud] of Object.entries(waarde)) {
-            uit[sleutel] = isGevoelig(sleutel) ? GEREDACTEERD : redacteer(inhoud, diepte + 1);
+            uit[sleutel] = isGevoelig(sleutel, extra) ? GEREDACTEERD : redacteer(inhoud, diepte + 1, extra);
         }
         return uit;
     }
@@ -122,7 +124,7 @@ export function redacteerUrl(url) {
  * kan elke vorm hebben, en veld-voor-veld schonen mist onvermijdelijk het veld dat
  * volgende maand wordt toegevoegd.
  */
-export function schoonEvent(event) {
+export function schoonEvent(event, extra = []) {
     const uit = { ...event };
     if (uit.request) {
         uit.request = {
@@ -136,9 +138,9 @@ export function schoonEvent(event) {
         };
     }
     if (uit.extra)
-        uit.extra = redacteer(uit.extra);
+        uit.extra = redacteer(uit.extra, 0, extra);
     if (uit.contexts)
-        uit.contexts = redacteer(uit.contexts);
+        uit.contexts = redacteer(uit.contexts, 0, extra);
     if (uit.breadcrumbs) {
         uit.breadcrumbs = uit.breadcrumbs.map((kruimel) => ({
             ...kruimel,
