@@ -6,6 +6,7 @@ import {
   redacteer,
   redacteerHeaders,
   redacteerUrl,
+  redacteerTekst,
   schoonEvent,
 } from "../../src/shared/redactie.js";
 
@@ -230,5 +231,98 @@ describe('extra gevoelige sleutels per product', () => {
     expect(uit.extra.tendertekst).toBe(GEREDACTEERD);
     expect(uit.extra.gewoon).toBe('zichtbaar');
     expect(uit.contexts.dossier.tendertekst).toBe(GEREDACTEERD);
+  });
+});
+
+describe('redacteerTekst — vrije tekst heeft geen sleutels (PLAT-140)', () => {
+  it('maskeert het wachtwoord in een verbindingssnoer en laat host en gebruiker staan', () => {
+    const uit = redacteerTekst(
+      'Command failed: pg_dump postgres://tender:Zx9%Geheim@monorail.proxy.rlwy.net:41234/railway'
+    );
+    expect(uit).not.toContain('Zx9%Geheim');
+    expect(uit).toContain('monorail.proxy.rlwy.net');
+    expect(uit).toContain('tender');
+  });
+
+  it('vangt het geval van TEN-86: execFile zet de volledige opdrachtregel in de fout', () => {
+    const uit = redacteerTekst(
+      'Error: spawn pg_dump ENOENT (args: --dbname=postgres://u:Str0ngP@ss@db.internal/prod)'
+    );
+    expect(uit).not.toContain('Str0ngP');
+  });
+
+  it('maskeert een gevoelige sleutel=waarde, ongeacht schrijfwijze', () => {
+    expect(redacteerTekst('PGPASSWORD=hunter2 pg_dump')).not.toContain('hunter2');
+    expect(redacteerTekst('{"token": "abc123def456"}')).not.toContain('abc123def456');
+    expect(redacteerTekst('Authorization: abcdef123456')).not.toContain('abcdef123456');
+  });
+
+  it('maskeert een gevoelige sleutel als losse vlag', () => {
+    expect(redacteerTekst('psql --password hunter2 -h db')).not.toContain('hunter2');
+  });
+
+  it('maskeert Bearer-tokens', () => {
+    expect(redacteerTekst('kreeg 401 met Bearer eyJhbGciOiJIUzI1NiJ9abc')).not.toContain('eyJhbG');
+  });
+
+  it('maskeert sleutels aan hun vorm, ook zonder sleutelwoord ernaast', () => {
+    expect(redacteerTekst('mislukt voor sk_live_51Hx9AbCdEfGhIjK')).not.toContain('sk_live_51Hx9');
+    expect(redacteerTekst('key re_HXX4Q2mN_8vBcDeFgHiJkLmNoPq geweigerd')).not.toContain('HXX4Q2mN');
+    expect(redacteerTekst('AKIAIOSFODNN7EXAMPLE afgewezen')).not.toContain('AKIAIOSFODNN7EXAMPLE');
+  });
+
+  it('laat gewone tekst met rust — anders wordt elke fout onleesbaar', () => {
+    const gewoon = 'TypeError: Cannot read properties of undefined (reading "naam") at line 42';
+    expect(redacteerTekst(gewoon)).toBe(gewoon);
+  });
+
+  it('laat een publiceerbare Stripe-sleutel staan: die hoort publiek te zijn', () => {
+    const tekst = 'init met pk_live_51Hx9AbCdEfGhIjK';
+    expect(redacteerTekst(tekst)).toBe(tekst);
+  });
+
+  it('gaat om met undefined en met een lege tekst', () => {
+    expect(redacteerTekst(undefined)).toBeUndefined();
+    expect(redacteerTekst('')).toBe('');
+  });
+});
+
+describe('schoonEvent schoont nu ook de foutmelding (PLAT-140)', () => {
+  it('schoont exception.values[].value', () => {
+    const uit = schoonEvent({
+      exception: {
+        values: [{ type: 'Error', value: 'connect failed: postgres://u:Geheim123@host/db' }],
+      },
+    });
+    expect(uit.exception?.values?.[0]?.value).not.toContain('Geheim123');
+  });
+
+  it('schoont de lokale variabelen van een stackframe op sleutelnaam', () => {
+    const uit = schoonEvent({
+      exception: {
+        values: [
+          {
+            value: 'boem',
+            stacktrace: { frames: [{ vars: { wachtwoord: 'hunter2', pad: '/tmp/x' } }] },
+          },
+        ],
+      },
+    });
+    const vars = uit.exception?.values?.[0]?.stacktrace?.frames?.[0]?.vars;
+    expect(vars?.['wachtwoord']).toBe(GEREDACTEERD);
+    expect(vars?.['pad']).toBe('/tmp/x');
+  });
+
+  it('schoont event.message en de breadcrumb-message', () => {
+    const uit = schoonEvent({
+      message: 'faalde met token=abc123def456',
+      breadcrumbs: [{ message: 'GET met Bearer eyJhbGciOiJIUzI1NiJ9abc' }],
+    });
+    expect(uit.message).not.toContain('abc123def456');
+    expect(uit.breadcrumbs?.[0]?.message).not.toContain('eyJhbG');
+  });
+
+  it('laat een event zonder exception ongemoeid', () => {
+    expect(schoonEvent({ tags: { product: 'tenderdesk' } }).tags).toEqual({ product: 'tenderdesk' });
   });
 });
