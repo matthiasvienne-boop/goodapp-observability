@@ -33,6 +33,30 @@ export declare function redacteerHeaders(headers: Record<string, unknown> | unde
  * Sentry sturen via het pad alleen.
  */
 export declare function redacteerUrl(url: string | undefined): string | undefined;
+/**
+ * Redacteert geheimen in vrije tekst.
+ *
+ * WAAROM DIT NAAST `redacteer` MOET BESTAAN
+ *
+ * `redacteer` werkt op sleutelnamen: een veld dat `password` heet, verliest zijn
+ * waarde. Dat is de juiste aanpak voor gestructureerde gegevens en de verkeerde
+ * voor een foutmelding, want vrije tekst heeft geen sleutels. Een geheim dat
+ * middenin een zin staat, heeft geen veldnaam om op te matchen.
+ *
+ * En juist daar komen geheimen terecht. Node zet bij `execFile` de volledige
+ * opdrachtregel in de fout — inclusief het verbindingssnoer dat als argument
+ * meeging. Dat is de vorm die dit soort lekken heeft: niet een geheim dat iemand
+ * opschrijft, maar een geheim dat een bibliotheek meestuurt in een veld waar
+ * niemand aan dacht. Zie PLAT-140 en TEN-86, waar het wachtwoord van een
+ * productiedatabase zo in een foutmelding belandde.
+ *
+ * DE GRENS VAN DEZE AANPAK, en die hoort erbij. Dit is een patroonlijst, en een
+ * patroonlijst is per definitie onvolledig: een geheim zonder herkenbare vorm,
+ * in een zin zonder sleutelwoord, komt hier ongeschonden doorheen. Het vangnet
+ * vervangt het dichtzetten aan de bron dus niet — het vangt wat daar ontsnapt.
+ */
+export declare function redacteerTekst(tekst: string): string;
+export declare function redacteerTekst(tekst: string | undefined): string | undefined;
 /** Minimale vorm van een Sentry-event, zodat deze module geen Sentry-SDK hoeft te importeren. */
 export interface SentryAchtigEvent {
     request?: {
@@ -51,6 +75,23 @@ export interface SentryAchtigEvent {
     user?: Record<string, unknown>;
     tags?: Record<string, unknown>;
     message?: string;
+    /** De foutmelding zelf. Vrije tekst, dus zonder sleutels om op te matchen. */
+    exception?: {
+        values?: Array<{
+            type?: string;
+            value?: string;
+            stacktrace?: {
+                frames?: Array<{
+                    vars?: Record<string, unknown>;
+                }>;
+            };
+        }>;
+    };
+    /** De sjabloonvorm van captureMessage; Sentry vult hier `params` los bij. */
+    logentry?: {
+        message?: string;
+        params?: unknown[];
+    };
 }
 /**
  * Schoont een volledig Sentry-event.
