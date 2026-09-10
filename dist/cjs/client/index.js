@@ -1,11 +1,12 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.schoonEvent = exports.redacteerUrl = exports.redacteerHeaders = exports.redacteer = exports.GEREDACTEERD = exports.initFrontendSentry = void 0;
+exports.schoonEvent = exports.redacteerUrl = exports.redacteerTekst = exports.redacteerHeaders = exports.redacteer = exports.GEREDACTEERD = exports.initFrontendSentry = void 0;
 var sentry_js_1 = require("./sentry.js");
 Object.defineProperty(exports, "initFrontendSentry", { enumerable: true, get: function () { return sentry_js_1.initFrontendSentry; } });
 var redactie_js_1 = require("../shared/redactie.js");
 Object.defineProperty(exports, "GEREDACTEERD", { enumerable: true, get: function () { return redactie_js_1.GEREDACTEERD; } });
 Object.defineProperty(exports, "redacteer", { enumerable: true, get: function () { return redactie_js_1.redacteer; } });
 Object.defineProperty(exports, "redacteerHeaders", { enumerable: true, get: function () { return redactie_js_1.redacteerHeaders; } });
+Object.defineProperty(exports, "redacteerTekst", { enumerable: true, get: function () { return redactie_js_1.redacteerTekst; } });
 Object.defineProperty(exports, "redacteerUrl", { enumerable: true, get: function () { return redactie_js_1.redacteerUrl; } });
 Object.defineProperty(exports, "schoonEvent", { enumerable: true, get: function () { return redactie_js_1.schoonEvent; } });
