@@ -353,3 +353,32 @@ describe('redacteerTekst — het schema is niet het geheim (PLAT-154)', () => {
     expect(redacteerTekst(zin)).toBe(zin);
   });
 });
+
+describe('redacteerTekst — patronen overgenomen uit Founder OS (PLAT-155)', () => {
+  it('vangt een gemaskeerde Stripe-sleutel, precies de vorm die lekt', () => {
+    expect(redacteerTekst('key sk_test_51H...wxyz geweigerd')).not.toContain('51H');
+    expect(redacteerTekst('whsec_abc123DEF456 ongeldig')).not.toContain('abc123DEF456');
+  });
+
+  it('vangt Google-sleutels en OAuth-tokens', () => {
+    expect(redacteerTekst('AIzaSyA1b2C3d4E5f6G7h8')).toBe(GEREDACTEERD);
+    expect(redacteerTekst('ya29.a0AfB_byC1d2e3f4g5')).toBe(GEREDACTEERD);
+  });
+
+  it('laat van een PEM-privésleutel niets over', () => {
+    const pem = '-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKC\nAQEA123\n-----END RSA PRIVATE KEY-----';
+    expect(redacteerTekst(`kon niet laden: ${pem}`)).not.toContain('MIIEowIBAAKC');
+  });
+
+  it('laat een publiceerbare Stripe-sleutel staan, ook in de bredere vorm', () => {
+    const tekst = 'init met pk_live_51Hx9AbCdEfGhIjK';
+    expect(redacteerTekst(tekst)).toBe(tekst);
+  });
+
+  it('laat een commit-sha en een contenthash met rust — daarom is er geen vangnet voor lange reeksen', () => {
+    const sha = 'at build a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0';
+    expect(redacteerTekst(sha)).toBe(sha);
+    const hash = 'chunk-A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6.js faalde';
+    expect(redacteerTekst(hash)).toBe(hash);
+  });
+});
