@@ -171,6 +171,26 @@ export function redacteerUrl(url: string | undefined): string | undefined {
  * in een zin zonder sleutelwoord, komt hier ongeschonden doorheen. Het vangnet
  * vervangt het dichtzetten aan de bron dus niet — het vangt wat daar ontsnapt.
  */
+/**
+ * Ziet dit eruit als een referentie en niet als een gewoon woord?
+ *
+ * Alleen nodig bij regel 4, waar er géén sleutel vóór het schema staat. Daar is
+ * `Basic authentication failed` een zin en `Basic dXNlcjpwYXNz` een geheim, en
+ * het verschil zit in de vorm: een referentie draagt cijfers, scheidingstekens
+ * of een mengeling van hoofd- en kleine letters. Een gewoon woord niet.
+ *
+ * Staat er wél een gevoelige sleutel vóór het schema, dan is die toets
+ * overbodig — de sleutel zegt al dat wat volgt een referentie is. Vandaar dat
+ * regel 2a geen lengte- of vormeis stelt.
+ */
+function lijktOpReferentie(kandidaat: string): boolean {
+  if (/[0-9._~+/=-]/.test(kandidaat)) return true;
+  return /[a-z]/.test(kandidaat) && /[A-Z]/.test(kandidaat);
+}
+
+/** Authenticatieschema's: het woord vóór de referentie, nooit de referentie zelf. */
+const SCHEMAS = /^(Bearer|Basic|Token|Digest)$/i;
+
 export function redacteerTekst(tekst: string): string;
 export function redacteerTekst(tekst: string | undefined): string | undefined;
 export function redacteerTekst(tekst: string | undefined): string | undefined {
@@ -186,14 +206,36 @@ export function redacteerTekst(tekst: string | undefined): string | undefined {
     (_t, schema: string, gebruiker: string) => `${schema}${gebruiker}:${GEREDACTEERD}@`
   );
 
+  // 2a. Een gevoelige sleutel gevolgd door een authenticatieschema. Het geheim
+  //     staat ná het schema — `Authorization: Bearer <token>`. Dit moet vóór
+  //     regel 2, anders vervangt die de waarde achter de sleutel, en dat is
+  //     hier het woord `Bearer` en niet het token (PLAT-154).
+  //
+  //     Geen minimumlengte zoals bij regel 4: wat er na een schema staat achter
+  //     een gevoelige sleutel, is per definitie de referentie. Twijfel is hier
+  //     goedkoper dan een gemist token.
+  uit = uit.replace(
+    /\b([A-Za-z_][A-Za-z0-9_.-]*)(["']?\s*[=:]\s*)(Bearer|Basic|Token|Digest)(\s+)([^\s,;)\]}"']+)/gi,
+    (volledig, sleutel: string, scheiding: string, schema: string, spatie: string) =>
+      isGevoelig(sleutel) ? `${sleutel}${scheiding}${schema}${spatie}${GEREDACTEERD}` : volledig
+  );
+
   // 2. sleutel=waarde en sleutel: waarde, waarbij de sleutel gevoelig heet.
   //    Dekt PGPASSWORD=..., --password=..., "token": "...", Authorization: ...
   uit = uit.replace(
     // Het aanhalingsteken na de sleutel is optioneel: in JSON staat er
     // "token": "...", in een omgevingsvariabele TOKEN=...
     /\b([A-Za-z_][A-Za-z0-9_.-]*)(["']?\s*[=:]\s*)("[^"]*"|'[^']*'|[^\s,;)\]}"']+)/g,
-    (volledig, sleutel: string, scheiding: string) =>
-      isGevoelig(sleutel) ? `${sleutel}${scheiding}${GEREDACTEERD}` : volledig
+    (volledig, sleutel: string, scheiding: string, waarde: string) => {
+      if (!isGevoelig(sleutel)) return volledig;
+      // Een authenticatieschema is niet het geheim, het staat ervóór. Regel 2a
+      // hierboven heeft dat geval al afgehandeld; hier alleen niet nog eens
+      // het schema zelf wegpoetsen. Zonder deze uitzondering wordt
+      // `Authorization: Bearer abc123` tot `Authorization: [weggelaten] abc123`
+      // — het woord weg, het token bewaard. Zie PLAT-154.
+      if (SCHEMAS.test(waarde)) return volledig;
+      return `${sleutel}${scheiding}${GEREDACTEERD}`;
+    }
   );
 
   // 3. Dezelfde sleutels als losse vlag: --password geheim.
@@ -203,8 +245,15 @@ export function redacteerTekst(tekst: string | undefined): string | undefined {
       isGevoelig(vlag) ? `${vlag}${spatie}${GEREDACTEERD}` : volledig
   );
 
-  // 4. Authorization-schema's in vrije tekst.
-  uit = uit.replace(/\b(Bearer|Basic)\s+[A-Za-z0-9._~+/=-]{8,}/gi, `$1 ${GEREDACTEERD}`);
+  // 4. Authenticatieschema's in vrije tekst, zonder sleutel ervoor.
+  //     Hier wél een minimumlengte: `Basic authentication failed` is een zin en
+  //     geen geheim, en een vangnet dat gewone tekst onleesbaar maakt wordt
+  //     uitgezet.
+  uit = uit.replace(
+    /\b(Bearer|Basic|Token|Digest)(\s+)([A-Za-z0-9._~+/=-]{8,})/gi,
+    (volledig, schema: string, spatie: string, kandidaat: string) =>
+      lijktOpReferentie(kandidaat) ? `${schema}${spatie}${GEREDACTEERD}` : volledig
+  );
 
   // 5. Sleutels met een herkenbare vorm. Alleen vormen die per definitie geheim
   //    zijn: Stripe's pk_ staat er bewust niet bij, die hoort publiek te zijn.
