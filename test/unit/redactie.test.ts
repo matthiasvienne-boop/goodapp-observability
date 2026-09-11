@@ -326,3 +326,30 @@ describe('schoonEvent schoont nu ook de foutmelding (PLAT-140)', () => {
     expect(schoonEvent({ tags: { product: 'tenderdesk' } }).tags).toEqual({ product: 'tenderdesk' });
   });
 });
+
+describe('redacteerTekst — het schema is niet het geheim (PLAT-154)', () => {
+  it('houdt Bearer en laat het token weg achter een gevoelige sleutel', () => {
+    const uit = redacteerTekst('Authorization: Bearer abc123def456');
+    expect(uit).toBe(`Authorization: Bearer ${GEREDACTEERD}`);
+  });
+
+  it('werkt ook met een kort, ondoorzichtig token — juist daar viel niets terug', () => {
+    expect(redacteerTekst('authorization: Bearer xY9')).toBe(`authorization: Bearer ${GEREDACTEERD}`);
+  });
+
+  it('dekt de andere schema’s en schrijfwijzen', () => {
+    expect(redacteerTekst('Authorization: Basic dXNlcjpwYXNz')).not.toContain('dXNlcjpwYXNz');
+    expect(redacteerTekst('{"authorization": "Token abc123def456"}')).not.toContain('abc123def456');
+    expect(redacteerTekst('Authorization=Digest nonce123456')).not.toContain('nonce123456');
+  });
+
+  it('laat de bestaande gevallen ongemoeid', () => {
+    expect(redacteerTekst('Authorization: abcdef123456')).toBe(`Authorization: ${GEREDACTEERD}`);
+    expect(redacteerTekst('kreeg 401 met Bearer eyJhbGciOiJIUzI1NiJ9abc')).not.toContain('eyJhbG');
+  });
+
+  it('maakt van een gewone zin geen onleesbare regel', () => {
+    const zin = 'Basic authentication failed for this request';
+    expect(redacteerTekst(zin)).toBe(zin);
+  });
+});
