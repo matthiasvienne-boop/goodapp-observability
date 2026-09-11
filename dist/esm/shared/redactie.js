@@ -202,14 +202,39 @@ export function redacteerTekst(tekst) {
     // 5. Sleutels met een herkenbare vorm. Alleen vormen die per definitie geheim
     //    zijn: Stripe's pk_ staat er bewust niet bij, die hoort publiek te zijn.
     const VORMEN = [
-        /\b[sr]k_(?:live|test)_[A-Za-z0-9]{8,}/g, // Stripe secret en restricted
+        // Stripe: geheim, beperkt én het webhook-geheim, ook in gemaskeerde vorm.
+        // Juist die vorm lekt — Stripe zet zelf "sk_test_51H...wxyz" in een
+        // foutmelding. pk_ staat er bewust niet bij: die hoort publiek te zijn.
+        // Overgenomen uit Founder OS' eigen redactor (PLAT-155), die breder was
+        // dan wat hier stond.
+        /\b(?:sk|rk|whsec)_[A-Za-z0-9*]+(?:[._-]+[A-Za-z0-9*]+)*/g,
         /\bre_[A-Za-z0-9_-]{16,}/g, // Resend
+        /\bAIza[A-Za-z0-9_-]{10,}/g, // Google API-sleutel
+        /\bya29\.[A-Za-z0-9._-]{10,}/g, // Google OAuth-toegangstoken
+        // Een PEM-blok. Een privésleutel hoort nooit in een boodschap; staat hij er
+        // toch, dan mag er niets van overblijven.
+        /-----BEGIN[^-]*PRIVATE KEY-----[\s\S]*?-----END[^-]*PRIVATE KEY-----/g,
         /\bgh[pousr]_[A-Za-z0-9]{20,}/g, // GitHub
         /\bgithub_pat_[A-Za-z0-9_]{20,}/g,
         /\bxox[baprs]-[A-Za-z0-9-]{10,}/g, // Slack
         /\bAKIA[0-9A-Z]{16}\b/g, // AWS access key id
         /\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/g, // JWT
     ];
+    // WAT HIER BEWUST NIET STAAT (PLAT-155). Founder OS' redactor draagt daarnaast
+    // een vangnet voor lange willekeurige reeksen: minstens 32 tekens met
+    // hoofdletters, kleine letters én cijfers. Dat is daar geijkt op korte
+    // connectorfoutmeldingen en werkt er goed.
+    //
+    // Hier zou het schaden. Deze functie draait op stacktraces, en die zitten vol
+    // reeksen die aan die drie eisen voldoen zonder een geheim te zijn:
+    // commit-sha's, contenthashes uit een bundler, base64-fragmenten, module-id's.
+    // Een vangnet dat die wegpoetst maakt de foutmelding onleesbaar, en een
+    // onleesbare foutmelding is zijn eigen probleem — dan wordt de redactie
+    // uitgezet en is er niets meer beschermd.
+    //
+    // De benoemde patronen zijn dus samengevoegd, het vangnet blijft
+    // product-specifiek. Dat is de uitkomst die PLAT-155 zelf als mogelijk
+    // noemde, met de reden erbij.
     for (const vorm of VORMEN)
         uit = uit.replace(vorm, GEREDACTEERD);
     return uit;
