@@ -17,6 +17,7 @@ export {
   GEREDACTEERD,
   redacteer,
   redacteerHeaders,
+  redacteerVoorLog,
   redacteerTekst,
   redacteerUrl,
   schoonEvent,

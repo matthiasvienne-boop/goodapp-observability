@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createHealthCheckHandler = exports.schoonEvent = exports.redacteerUrl = exports.redacteerTekst = exports.redacteerHeaders = exports.redacteer = exports.GEREDACTEERD = exports.validateEnv = exports.Sentry = exports.setupBackendSentryErrorHandler = exports.initBackendSentry = exports.logger = exports.requestContext = exports.currentRequestId = exports.configureObservability = exports.createLogger = void 0;
+exports.createHealthCheckHandler = exports.schoonEvent = exports.redacteerUrl = exports.redacteerTekst = exports.redacteerVoorLog = exports.redacteerHeaders = exports.redacteer = exports.GEREDACTEERD = exports.validateEnv = exports.Sentry = exports.setupBackendSentryErrorHandler = exports.initBackendSentry = exports.logger = exports.requestContext = exports.currentRequestId = exports.configureObservability = exports.createLogger = void 0;
 var logger_js_1 = require("./logger.js");
 Object.defineProperty(exports, "createLogger", { enumerable: true, get: function () { return logger_js_1.createLogger; } });
 Object.defineProperty(exports, "configureObservability", { enumerable: true, get: function () { return logger_js_1.configureObservability; } });
@@ -17,6 +17,7 @@ var redactie_js_1 = require("../shared/redactie.js");
 Object.defineProperty(exports, "GEREDACTEERD", { enumerable: true, get: function () { return redactie_js_1.GEREDACTEERD; } });
 Object.defineProperty(exports, "redacteer", { enumerable: true, get: function () { return redactie_js_1.redacteer; } });
 Object.defineProperty(exports, "redacteerHeaders", { enumerable: true, get: function () { return redactie_js_1.redacteerHeaders; } });
+Object.defineProperty(exports, "redacteerVoorLog", { enumerable: true, get: function () { return redactie_js_1.redacteerVoorLog; } });
 Object.defineProperty(exports, "redacteerTekst", { enumerable: true, get: function () { return redactie_js_1.redacteerTekst; } });
 Object.defineProperty(exports, "redacteerUrl", { enumerable: true, get: function () { return redactie_js_1.redacteerUrl; } });
 Object.defineProperty(exports, "schoonEvent", { enumerable: true, get: function () { return redactie_js_1.schoonEvent; } });

@@ -25,6 +25,32 @@ export type ExtraSleutels = readonly string[];
  * niet laten vastlopen — dat zou van een fout een storing maken.
  */
 export declare function redacteer(waarde: unknown, diepte?: number, extra?: ExtraSleutels): unknown;
+/**
+ * Redacteert een waarde die naar een logregel gaat (PLAT-184).
+ *
+ * WAAROM NIET GEWOON `redacteer`
+ *
+ * `redacteer` is gebouwd voor Sentry, waar de lat hoog mag liggen: het haalt
+ * naast geheimen ook vertrouwelijke bedrijfswoorden weg (`prijs`, `bedrag`,
+ * `email`, `bericht`, ...). In een logregel zou dat de regel onbruikbaar maken:
+ * Brickstory logt prijzen, een mailfout hoort het adres te noemen. Een logger
+ * die zoveel weghaalt wordt omzeild of uitgezet, en dan is er niets meer
+ * beschermd. Deze functie haalt daarom alleen echte geheimen weg, op twee
+ * manieren:
+ *
+ * 1. Sleutels uit de geheime lijst (`password`, `token`, `authorization`, ...):
+ *    de waarde gaat weg. Alleen tekst en objecten; een getal of een boolean is
+ *    geen inloggegeven, en `inputTokens: 1200` of `sessionCount: 3` hoort te
+ *    blijven staan.
+ * 2. Elke tekstwaarde gaat door `redacteerTekst`, zodat een verbindingssnoer of
+ *    een `Authorization: Bearer ...` in een gewone string ook verdwijnt.
+ *
+ * Objecten die geen gewoon object zijn (Date, Buffer, Map, ...) blijven ongemoeid:
+ * `JSON.stringify` weet er zelf raad mee, en `Object.entries` zou een Date tot
+ * `{}` maken. De diepte is begrensd zodat een cyclische structuur de logger niet
+ * laat vastlopen.
+ */
+export declare function redacteerVoorLog(waarde: unknown, diepte?: number, extra?: ExtraSleutels): unknown;
 export declare function redacteerHeaders(headers: Record<string, unknown> | undefined): Record<string, unknown>;
 /**
  * Strip de querystring en het fragment uit een URL.

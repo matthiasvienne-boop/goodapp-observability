@@ -19,6 +19,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.GEREDACTEERD = void 0;
 exports.redacteer = redacteer;
+exports.redacteerVoorLog = redacteerVoorLog;
 exports.redacteerHeaders = redacteerHeaders;
 exports.redacteerUrl = redacteerUrl;
 exports.redacteerTekst = redacteerTekst;
@@ -95,6 +96,67 @@ function redacteer(waarde, diepte = 0, extra = []) {
         return uit;
     }
     return waarde;
+}
+/**
+ * Zijn dit alleen de echte geheimen? De vertrouwelijke bedrijfswoorden (prijs,
+ * bedrag, email, ...) tellen hier bewust niet mee: zie `redacteerVoorLog`.
+ */
+function isGeheimeSleutel(sleutel, extra = []) {
+    const kaal = sleutel.toLowerCase().replace(/[^a-z]/g, '');
+    const kaalExtra = extra.map((s) => s.toLowerCase().replace(/[^a-z]/g, ''));
+    return (GEHEIME_SLEUTELS.some((s) => kaal.includes(s)) ||
+        kaalExtra.some((s) => s.length > 0 && kaal.includes(s)));
+}
+function isPlainObject(waarde) {
+    const proto = Object.getPrototypeOf(waarde);
+    return proto === Object.prototype || proto === null;
+}
+/**
+ * Redacteert een waarde die naar een logregel gaat (PLAT-184).
+ *
+ * WAAROM NIET GEWOON `redacteer`
+ *
+ * `redacteer` is gebouwd voor Sentry, waar de lat hoog mag liggen: het haalt
+ * naast geheimen ook vertrouwelijke bedrijfswoorden weg (`prijs`, `bedrag`,
+ * `email`, `bericht`, ...). In een logregel zou dat de regel onbruikbaar maken:
+ * Brickstory logt prijzen, een mailfout hoort het adres te noemen. Een logger
+ * die zoveel weghaalt wordt omzeild of uitgezet, en dan is er niets meer
+ * beschermd. Deze functie haalt daarom alleen echte geheimen weg, op twee
+ * manieren:
+ *
+ * 1. Sleutels uit de geheime lijst (`password`, `token`, `authorization`, ...):
+ *    de waarde gaat weg. Alleen tekst en objecten; een getal of een boolean is
+ *    geen inloggegeven, en `inputTokens: 1200` of `sessionCount: 3` hoort te
+ *    blijven staan.
+ * 2. Elke tekstwaarde gaat door `redacteerTekst`, zodat een verbindingssnoer of
+ *    een `Authorization: Bearer ...` in een gewone string ook verdwijnt.
+ *
+ * Objecten die geen gewoon object zijn (Date, Buffer, Map, ...) blijven ongemoeid:
+ * `JSON.stringify` weet er zelf raad mee, en `Object.entries` zou een Date tot
+ * `{}` maken. De diepte is begrensd zodat een cyclische structuur de logger niet
+ * laat vastlopen.
+ */
+function redacteerVoorLog(waarde, diepte = 0, extra = []) {
+    if (typeof waarde === 'string')
+        return redacteerTekst(waarde);
+    if (waarde === null || typeof waarde !== 'object')
+        return waarde;
+    if (diepte > 6)
+        return exports.GEREDACTEERD;
+    if (Array.isArray(waarde)) {
+        return waarde.map((item) => redacteerVoorLog(item, diepte + 1, extra));
+    }
+    if (!isPlainObject(waarde))
+        return waarde;
+    const uit = {};
+    for (const [sleutel, inhoud] of Object.entries(waarde)) {
+        const isGetalOfBoolean = typeof inhoud === 'number' || typeof inhoud === 'boolean';
+        uit[sleutel] =
+            isGeheimeSleutel(sleutel, extra) && !isGetalOfBoolean && inhoud !== null && inhoud !== undefined
+                ? exports.GEREDACTEERD
+                : redacteerVoorLog(inhoud, diepte + 1, extra);
+    }
+    return uit;
 }
 /**
  * Headers die wél mee mogen.
