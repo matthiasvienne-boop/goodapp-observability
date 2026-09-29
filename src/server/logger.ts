@@ -22,6 +22,7 @@
 
 import { AsyncLocalStorage } from "async_hooks";
 import { Sentry } from "./sentry.js";
+import { redacteerTekst, redacteerVoorLog } from "../shared/redactie.js";
 
 export type LogLevel = "debug" | "info" | "warn" | "error";
 
@@ -77,7 +78,13 @@ interface ErrShape {
 }
 
 function serializeError(err: Error): ErrShape {
-  return { name: err.name, message: err.message, stack: err.stack };
+  // PLAT-184: een foutmelding en stack kunnen een geheim dragen (een
+  // verbindingssnoer in een opdrachtregel, een Authorization-header).
+  return {
+    name: err.name,
+    message: redacteerTekst(err.message),
+    stack: err.stack === undefined ? undefined : redacteerTekst(err.stack),
+  };
 }
 
 // Ontleedt variadische argumenten in { msg, err?, meta } zodat zowel de
@@ -106,7 +113,12 @@ function parseArgs(parts: unknown[]): { msg: string; err?: Error; meta?: Meta } 
 function emit(level: LogLevel, component: string, parts: unknown[]): void {
   if (LEVEL_WEIGHT[level] < LEVEL_WEIGHT[MIN_LEVEL]) return;
 
-  const { msg, err, meta } = parseArgs(parts);
+  const gelezen = parseArgs(parts);
+  // PLAT-184: de logger schreef tot nu toe ongefilterd; alleen Sentry redigeerde.
+  // Zie `redacteerVoorLog` voor wat wel en wat bewust niet wordt weggehaald.
+  const msg = redacteerTekst(gelezen.msg);
+  const meta = gelezen.meta ? (redacteerVoorLog(gelezen.meta) as Meta) : undefined;
+  const err = gelezen.err;
   const ctx = requestContext.getStore();
   const record: Record<string, unknown> = {
     ts: new Date().toISOString(),

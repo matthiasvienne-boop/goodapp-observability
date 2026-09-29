@@ -21,6 +21,7 @@
 // optioneel en zonder effect als nooit aangeroepen.
 import { AsyncLocalStorage } from "async_hooks";
 import { Sentry } from "./sentry.js";
+import { redacteerTekst, redacteerVoorLog } from "../shared/redactie.js";
 const LEVEL_WEIGHT = { debug: 10, info: 20, warn: 30, error: 40 };
 export const requestContext = new AsyncLocalStorage();
 /** Het huidige request-id (indien binnen een request-scope), anders undefined. */
@@ -51,7 +52,13 @@ function resolveMinLevel() {
 }
 const MIN_LEVEL = resolveMinLevel();
 function serializeError(err) {
-    return { name: err.name, message: err.message, stack: err.stack };
+    // PLAT-184: een foutmelding en stack kunnen een geheim dragen (een
+    // verbindingssnoer in een opdrachtregel, een Authorization-header).
+    return {
+        name: err.name,
+        message: redacteerTekst(err.message),
+        stack: err.stack === undefined ? undefined : redacteerTekst(err.stack),
+    };
 }
 // Ontleedt variadische argumenten in { msg, err?, meta } zodat zowel de
 // console-stijl (`"tekst:", value`) als de gestructureerde stijl
@@ -81,7 +88,12 @@ function parseArgs(parts) {
 function emit(level, component, parts) {
     if (LEVEL_WEIGHT[level] < LEVEL_WEIGHT[MIN_LEVEL])
         return;
-    const { msg, err, meta } = parseArgs(parts);
+    const gelezen = parseArgs(parts);
+    // PLAT-184: de logger schreef tot nu toe ongefilterd; alleen Sentry redigeerde.
+    // Zie `redacteerVoorLog` voor wat wel en wat bewust niet wordt weggehaald.
+    const msg = redacteerTekst(gelezen.msg);
+    const meta = gelezen.meta ? redacteerVoorLog(gelezen.meta) : undefined;
+    const err = gelezen.err;
     const ctx = requestContext.getStore();
     const record = {
         ts: new Date().toISOString(),

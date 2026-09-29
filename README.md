@@ -29,6 +29,15 @@ import {
 import { initFrontendSentry } from "@goodapp/observability/client";
 ```
 
+## Logger redaction (since 0.4.1, PLAT-184)
+
+The logger redacts secrets before it writes a line, the same way the Sentry integration always did. What it does, and deliberately does not do:
+
+- Free text (the message, an `Error`'s message and stack, and every string value in the metadata) goes through `redacteerTekst`: connection-string passwords, `Authorization: Bearer ...`, `sk_`/`whsec_` keys and the other named patterns are replaced with `[weggelaten]`. Commit hashes and bundler hashes are left alone.
+- Metadata keys from the secret list (`password`, `token`, `authorization`, `cookie`, `session`, ...) lose their value, also when nested. Numbers and booleans stay, so `inputTokens: 1200` is not affected. Pass product-specific keys through `redacteerVoorLog(value, 0, ["tendertekst"])` if you need more.
+- The confidential business words that Sentry also strips (`prijs`, `bedrag`, `email`, `bericht`, ...) are **not** removed from logs: a log line that hides the price it is reporting gets bypassed, and then nothing is protected.
+- Before 0.4.1 the output for a line without secrets was byte-identical to a plain `console.*` line; that is still true. A line that contained a secret now differs, on purpose.
+
 ## What's deliberately *not* in it
 
 - **Environment-rule lists.** `validateEnv()` takes a `rules: EnvRule[]` argument — each product supplies its own (JWT secrets, Stripe keys, whatever it needs). No product-specific variable names live in this public repo.
