@@ -7,6 +7,9 @@ export {
 } from "./logger.js";
 export type { Logger, LogLevel, RequestContext } from "./logger.js";
 
+export { requestContextMiddleware, verrijkRequestContext } from "./request-context.js";
+export type { RequestContextOpties, VerzoekInfo } from "./request-context.js";
+
 export { initBackendSentry, setupBackendSentryErrorHandler, Sentry } from "./sentry.js";
 export type { BackendSentryOptions } from "./sentry.js";
 

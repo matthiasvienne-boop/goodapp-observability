@@ -1,12 +1,15 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createHealthCheckHandler = exports.schoonEvent = exports.redacteerUrl = exports.redacteerTekst = exports.redacteerVoorLog = exports.redacteerHeaders = exports.redacteer = exports.GEREDACTEERD = exports.validateEnv = exports.Sentry = exports.setupBackendSentryErrorHandler = exports.initBackendSentry = exports.logger = exports.requestContext = exports.currentRequestId = exports.configureObservability = exports.createLogger = void 0;
+exports.createHealthCheckHandler = exports.schoonEvent = exports.redacteerUrl = exports.redacteerTekst = exports.redacteerVoorLog = exports.redacteerHeaders = exports.redacteer = exports.GEREDACTEERD = exports.validateEnv = exports.Sentry = exports.setupBackendSentryErrorHandler = exports.initBackendSentry = exports.verrijkRequestContext = exports.requestContextMiddleware = exports.logger = exports.requestContext = exports.currentRequestId = exports.configureObservability = exports.createLogger = void 0;
 var logger_js_1 = require("./logger.js");
 Object.defineProperty(exports, "createLogger", { enumerable: true, get: function () { return logger_js_1.createLogger; } });
 Object.defineProperty(exports, "configureObservability", { enumerable: true, get: function () { return logger_js_1.configureObservability; } });
 Object.defineProperty(exports, "currentRequestId", { enumerable: true, get: function () { return logger_js_1.currentRequestId; } });
 Object.defineProperty(exports, "requestContext", { enumerable: true, get: function () { return logger_js_1.requestContext; } });
 Object.defineProperty(exports, "logger", { enumerable: true, get: function () { return logger_js_1.logger; } });
+var request_context_js_1 = require("./request-context.js");
+Object.defineProperty(exports, "requestContextMiddleware", { enumerable: true, get: function () { return request_context_js_1.requestContextMiddleware; } });
+Object.defineProperty(exports, "verrijkRequestContext", { enumerable: true, get: function () { return request_context_js_1.verrijkRequestContext; } });
 var sentry_js_1 = require("./sentry.js");
 Object.defineProperty(exports, "initBackendSentry", { enumerable: true, get: function () { return sentry_js_1.initBackendSentry; } });
 Object.defineProperty(exports, "setupBackendSentryErrorHandler", { enumerable: true, get: function () { return sentry_js_1.setupBackendSentryErrorHandler; } });
