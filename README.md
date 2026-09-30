@@ -38,6 +38,24 @@ The logger redacts secrets before it writes a line, the same way the Sentry inte
 - The confidential business words that Sentry also strips (`prijs`, `bedrag`, `email`, `bericht`, ...) are **not** removed from logs: a log line that hides the price it is reporting gets bypassed, and then nothing is protected.
 - Before 0.4.1 the output for a line without secrets was byte-identical to a plain `console.*` line; that is still true. A line that contained a secret now differs, on purpose.
 
+## Request context middleware (since 0.5.0, PLAT-208)
+
+The logger has always put `requestId`, `userId` and `organizationId` on a line when a request context exists, but only Veynoris ever created one. `requestContextMiddleware` is that middleware, ready to use with Express:
+
+```ts
+import { requestContextMiddleware, verrijkRequestContext } from "@goodapp/observability/server";
+
+app.use(requestContextMiddleware({ stilPaden: ["/api/health"] })); // as early as possible, before the routes
+
+// in your auth middleware, after the token is verified:
+verrijkRequestContext({ userId: user.id, organizationId: user.organizationId });
+```
+
+- An incoming `x-request-id` is reused if it is at most 128 characters of `A-Z a-z 0-9 . _ : -`; anything else gets a fresh UUID. The id is returned in the response header.
+- Every log line inside the request carries the id. The finished request is logged with method, path, status and duration: 5xx as `error` (that goes to Sentry), 4xx as `warn`, the rest as `info`.
+- The query string is never logged (it can hold tokens); neither are bodies or headers.
+- `naVerzoek(info, req)` is an optional hook for something product-specific after the response (Veynoris' visit counter). An error in it never breaks the request.
+
 ## What's deliberately *not* in it
 
 - **Environment-rule lists.** `validateEnv()` takes a `rules: EnvRule[]` argument — each product supplies its own (JWT secrets, Stripe keys, whatever it needs). No product-specific variable names live in this public repo.

@@ -13,7 +13,7 @@ It is the **first** package built under [`PACKAGE-STANDARD.md`](../goodapp_onlin
 Two subpath exports. Nothing is exported from the package root — every import names its target explicitly.
 
 **`@goodapp/observability/server`** (Node only):
-`createLogger`, `configureObservability`, `requestContext`, `currentRequestId`, `initBackendSentry`, `setupBackendSentryErrorHandler`, `validateEnv`, `createHealthCheckHandler`, plus the `Logger`, `LogLevel`, `RequestContext`, `BackendSentryOptions`, `EnvRule`, `EnvLevel`, `HealthCheck`, `HealthCheckResult`, `HealthCheckOptions` types.
+`createLogger`, `configureObservability`, `requestContext`, `currentRequestId`, `requestContextMiddleware`, `verrijkRequestContext`, `initBackendSentry`, `setupBackendSentryErrorHandler`, `validateEnv`, `createHealthCheckHandler`, plus the `Logger`, `LogLevel`, `RequestContext`, `BackendSentryOptions`, `EnvRule`, `EnvLevel`, `HealthCheck`, `HealthCheckResult`, `HealthCheckOptions` types.
 
 **`@goodapp/observability/client`** (browser only):
 `initFrontendSentry`, plus the `FrontendSentryOptions` type.
